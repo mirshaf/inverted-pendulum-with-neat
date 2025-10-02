@@ -19,15 +19,18 @@ neural_net_control = False  # False = keyboard control, True = neural net contro
 class SimpleNeuralNet:
     def __init__(self):
         # Randomly initialize weights
-        # Input to hidden: 3x2 matrix
-        self.weights_ih = np.random.randn(3, 2) * 2 - 1  # Values between -1 and 1
-        # Hidden to output: 2x1 matrix
-        self.weights_ho = np.random.randn(2, 1) * 2 - 1  # Values between -1 and 1
+        self.reset_weights()
         
         # Initialize activations for visualization
         self.input_activations = [0, 0, 0]
         self.hidden_activations = [0, 0]
         self.output_activation = 0
+    
+    def reset_weights(self):
+        # Input to hidden: 3x2 matrix
+        self.weights_ih = np.random.randn(3, 2) * 2 - 1  # Values between -1 and 1
+        # Hidden to output: 2x1 matrix
+        self.weights_ho = np.random.randn(2, 1) * 2 - 1  # Values between -1 and 1
     
     def relu(self, x):
         return max(0, x)
@@ -61,8 +64,11 @@ class SimpleNeuralNet:
 # Create neural network instance
 neural_net = SimpleNeuralNet()
 
+# History for speed vs time graph
+speed_history = []
+
 def draw(space, window, draw_options, anchor_body, circle_body, angular_velocity_history):
-    window.fill("white")
+    window.fill((240, 240, 240))  # Light gray background
     space.debug_draw(draw_options)
     
     # Calculate the angle of the pendulum relative to positive x-axis
@@ -115,24 +121,30 @@ def draw(space, window, draw_options, anchor_body, circle_body, angular_velocity
         neural_net_output = neural_net.forward([normalized_anchor_x, normalized_angle, normalized_angular_velocity])
         move_speed = neural_net_output * 5  # Scale to appropriate move speed
     
+    # Add current speed to history
+    speed_history.append(move_speed)
+    if len(speed_history) > 200:
+        speed_history.pop(0)
+    
     # Display information on screen if show_info is True
     if show_info:
         font = pygame.font.SysFont('Arial', 24)
         
         # Anchor x position
-        anchor_text = font.render(f"Anchor X: {anchor_body.position.x:.2f}", True, (0, 0, 0))
+        anchor_text = font.render(f"Anchor X: {anchor_body.position.x:.2f}", True, (50, 50, 50))
         window.blit(anchor_text, (10, 10))
         
         # Pendulum angle
-        angle_text = font.render(f"Angle: {angle_degrees:.2f}°", True, (0, 0, 0))
+        angle_text = font.render(f"Angle: {angle_degrees:.2f}°", True, (50, 50, 50))
         window.blit(angle_text, (10, 40))
         
         # Angular velocity around anchor
-        angular_velocity_text = font.render(f"Angular Velocity: {angular_velocity_degrees:.2f}°/s", True, (0, 0, 0))
+        angular_velocity_text = font.render(f"Angular Velocity: {angular_velocity_degrees:.2f}°/s", True, (50, 50, 50))
         window.blit(angular_velocity_text, (10, 70))
         
         # Control mode
-        control_text = font.render(f"Control: {'Neural Net' if neural_net_control else 'Keyboard'}", True, (0, 0, 0))
+        control_text = font.render(f"Control: {'Neural Net' if neural_net_control else 'Keyboard'}", True, 
+                                 (0, 100, 0) if neural_net_control else (100, 0, 0))
         window.blit(control_text, (10, 100))
         
         # Draw angular velocity vs time graph
@@ -141,6 +153,11 @@ def draw(space, window, draw_options, anchor_body, circle_body, angular_velocity
     # Draw neural network visualization if enabled
     if show_neural_net:
         draw_neural_net(window)
+        # Draw speed vs time graph
+        draw_speed_graph(window, speed_history)
+    
+    # Draw key reference at the bottom
+    draw_key_reference(window)
     
     pygame.display.update()
     return move_speed
@@ -151,13 +168,13 @@ def draw_angular_velocity_graph(window, angular_velocity_history):
     
     # Graph dimensions and position
     graph_width = 300
-    graph_height = 200
+    graph_height = 150
     graph_x = WIDTH - graph_width - 20
     graph_y = 20
     
-    # Draw graph background
-    pygame.draw.rect(window, (240, 240, 240), (graph_x, graph_y, graph_width, graph_height))
-    pygame.draw.rect(window, (0, 0, 0), (graph_x, graph_y, graph_width, graph_height), 1)
+    # Draw graph background with rounded corners
+    pygame.draw.rect(window, (255, 255, 255), (graph_x, graph_y, graph_width, graph_height), border_radius=10)
+    pygame.draw.rect(window, (80, 80, 80), (graph_x, graph_y, graph_width, graph_height), 2, border_radius=10)
     
     # Find min and max values for scaling
     min_velocity = min(angular_velocity_history)
@@ -170,14 +187,14 @@ def draw_angular_velocity_graph(window, angular_velocity_history):
     
     # Draw axes labels
     font = pygame.font.SysFont('Arial', 14)
-    title = font.render("Angular Velocity vs Time", True, (0, 0, 0))
+    title = font.render("Angular Velocity vs Time", True, (50, 50, 50))
     window.blit(title, (graph_x + 10, graph_y + 5))
     
-    min_label = font.render(f"{min_velocity:.1f}°/s", True, (0, 0, 0))
-    window.blit(min_label, (graph_x - 40, graph_y + graph_height - 10))
+    min_label = font.render(f"{min_velocity:.1f}°/s", True, (50, 50, 50))
+    window.blit(min_label, (graph_x - 45, graph_y + graph_height - 10))
     
-    max_label = font.render(f"{max_velocity:.1f}°/s", True, (0, 0, 0))
-    window.blit(max_label, (graph_x - 40, graph_y + 10))
+    max_label = font.render(f"{max_velocity:.1f}°/s", True, (50, 50, 50))
+    window.blit(max_label, (graph_x - 45, graph_y + 10))
     
     # Draw the graph line
     points = []
@@ -187,22 +204,76 @@ def draw_angular_velocity_graph(window, angular_velocity_history):
         points.append((x, y))
     
     if len(points) > 1:
-        pygame.draw.lines(window, (255, 0, 0), False, points, 2)
+        pygame.draw.lines(window, (220, 50, 50), False, points, 3)
+
+def draw_speed_graph(window, speed_history):
+    if len(speed_history) < 2:
+        return
+    
+    # Graph dimensions and position
+    graph_width = 300
+    graph_height = 150
+    graph_x = WIDTH - graph_width - 20
+    graph_y = HEIGHT - graph_height - 50  # Position below the angular velocity graph
+    
+    # Draw graph background with rounded corners
+    pygame.draw.rect(window, (255, 255, 255), (graph_x, graph_y, graph_width, graph_height), border_radius=10)
+    pygame.draw.rect(window, (80, 80, 80), (graph_x, graph_y, graph_width, graph_height), 2, border_radius=10)
+    
+    # Find min and max values for scaling
+    min_speed = min(speed_history)
+    max_speed = max(speed_history)
+    range_speed = max_speed - min_speed
+    
+    # Avoid division by zero
+    if range_speed == 0:
+        range_speed = 1
+    
+    # Draw axes labels
+    font = pygame.font.SysFont('Arial', 14)
+    title = font.render("Speed vs Time", True, (50, 50, 50))
+    window.blit(title, (graph_x + 10, graph_y + 5))
+    
+    min_label = font.render(f"{min_speed:.1f}", True, (50, 50, 50))
+    window.blit(min_label, (graph_x - 30, graph_y + graph_height - 10))
+    
+    max_label = font.render(f"{max_speed:.1f}", True, (50, 50, 50))
+    window.blit(max_label, (graph_x - 30, graph_y + 10))
+    
+    # Draw zero line
+    zero_y = graph_y + graph_height - ((0 - min_speed) / range_speed) * (graph_height - 1)
+    pygame.draw.line(window, (200, 200, 200), (graph_x, zero_y), (graph_x + graph_width, zero_y), 1)
+    
+    # Draw the graph line
+    points = []
+    for i, speed in enumerate(speed_history):
+        x = graph_x + (i / (len(speed_history) - 1)) * (graph_width - 1)
+        y = graph_y + graph_height - ((speed - min_speed) / range_speed) * (graph_height - 1)
+        points.append((x, y))
+    
+    if len(points) > 1:
+        pygame.draw.lines(window, (50, 120, 220), False, points, 3)
 
 def draw_neural_net(window):
     # Neural network visualization parameters
     net_x = WIDTH - 350
-    net_y = HEIGHT - 300
+    net_y = HEIGHT - 350
     layer_spacing = 150
     node_spacing = 60
     node_radius = 20
     
-    # Draw connections (weights)
+    # Draw title
+    font = pygame.font.SysFont('Arial', 16)
+    title = font.render("Neural Network Visualization", True, (50, 50, 50))
+    window.blit(title, (net_x, net_y - 30))
+    
+    # Draw connections (weights) with gradient colors
     for i in range(3):  # Input nodes
         for j in range(2):  # Hidden nodes
             weight = neural_net.weights_ih[i, j]
-            color = (0, 255, 0) if weight > 0 else (255, 0, 0)  # Green for positive, red for negative
-            thickness = max(1, int(abs(weight) * 2))  # Thicker line for larger weights
+            color_coeff = min(255, 150 + int(105 * abs(weight)))
+            color = (0, color_coeff, 0) if weight > 0 else (color_coeff, 0, 0)
+            thickness = max(1, int(abs(weight) * 3))  # Thicker line for larger weights
             
             start_x = net_x
             start_y = net_y + i * node_spacing
@@ -213,8 +284,9 @@ def draw_neural_net(window):
     
     for j in range(2):  # Hidden nodes
         weight = neural_net.weights_ho[j, 0]
-        color = (0, 255, 0) if weight > 0 else (255, 0, 0)  # Green for positive, red for negative
-        thickness = max(1, int(abs(weight) * 2))  # Thicker line for larger weights
+        color_coeff = min(255, 150 + int(105 * abs(weight)))
+        color = (0, color_coeff, 0) if weight > 0 else (color_coeff, 0, 0)
+        thickness = max(1, int(abs(weight) * 3))  # Thicker line for larger weights
         
         start_x = net_x + layer_spacing
         start_y = net_y + j * node_spacing
@@ -223,18 +295,22 @@ def draw_neural_net(window):
         
         pygame.draw.line(window, color, (start_x, start_y), (end_x, end_y), thickness)
     
-    # Draw input nodes
+    # Draw input nodes with gradient backgrounds
     for i in range(3):
         x = net_x
         y = net_y + i * node_spacing
+        
+        # Draw node background based on activation
+        activation = neural_net.input_activations[i]
+        bg_color = (200, 255, 200) if activation > 0 else (255, 200, 200)
+        pygame.draw.circle(window, bg_color, (x, y), node_radius)
         
         # Draw node outline
         pygame.draw.circle(window, (0, 0, 0), (x, y), node_radius, 2)
         
         # Draw activation indicator
-        activation = neural_net.input_activations[i]
         activation_radius = int(min(node_radius, abs(activation) * node_radius / 3))
-        activation_color = (0, 255, 0) if activation > 0 else (255, 0, 0)
+        activation_color = (0, 200, 0) if activation > 0 else (200, 0, 0)
         
         if activation_radius > 0:
             pygame.draw.circle(window, activation_color, (x, y), activation_radius)
@@ -245,10 +321,15 @@ def draw_neural_net(window):
         label = font.render(labels[i], True, (0, 0, 0))
         window.blit(label, (x - 40, y - 40))
     
-    # Draw hidden nodes
+    # Draw hidden nodes with gradient backgrounds
     for j in range(2):
         x = net_x + layer_spacing
         y = net_y + j * node_spacing
+        
+        # Draw node background based on activation
+        activation = neural_net.hidden_activations[j]
+        bg_color = (200, 255, 200) if activation > 0 else (255, 200, 200)
+        pygame.draw.circle(window, bg_color, (x, y), node_radius)
         
         # Draw node outline
         pygame.draw.circle(window, (0, 0, 0), (x, y), node_radius, 2)
@@ -256,23 +337,31 @@ def draw_neural_net(window):
         # Draw activation indicator
         activation = neural_net.hidden_activations[j]
         activation_radius = int(min(node_radius, abs(activation) * node_radius / 3))
-        activation_color = (0, 255, 0) if activation > 0 else (255, 0, 0)
+        activation_color = (0, 200, 0) if activation > 0 else (200, 0, 0)
         
         if activation_radius > 0:
             pygame.draw.circle(window, activation_color, (x, y), activation_radius)
         
+        # Draw node label
+        font = pygame.font.SysFont('Arial', 14)
+        label = font.render(f"H{j+1}", True, (0, 0, 0))
+        window.blit(label, (x - 15, y - 40))
     
-    # Draw output node
+    # Draw output node with gradient background
     x = net_x + 2 * layer_spacing
     y = net_y + node_spacing
+    
+    # Draw node background based on activation
+    activation = neural_net.output_activation
+    bg_color = (200, 255, 200) if activation > 0 else (255, 200, 200)
+    pygame.draw.circle(window, bg_color, (x, y), node_radius)
     
     # Draw node outline
     pygame.draw.circle(window, (0, 0, 0), (x, y), node_radius, 2)
     
     # Draw activation indicator
-    activation = neural_net.output_activation
     activation_radius = int(min(node_radius, abs(activation) * node_radius / 3))
-    activation_color = (0, 255, 0) if activation > 0 else (255, 0, 0)
+    activation_color = (0, 200, 0) if activation > 0 else (200, 0, 0)
     
     if activation_radius > 0:
         pygame.draw.circle(window, activation_color, (x, y), activation_radius)
@@ -281,6 +370,13 @@ def draw_neural_net(window):
     font = pygame.font.SysFont('Arial', 14)
     label = font.render("Speed", True, (0, 0, 0))
     window.blit(label, (x - 40, y - 40))
+
+def draw_key_reference(window):
+    # Draw a reference for all keys at the bottom of the screen
+    font = pygame.font.SysFont('Arial', 16)
+    keys_text = font.render("Keys: ← → (Move Anchor) | C (Toggle Control) | I (Toggle Info) | N (Toggle Neural Net) | R (Reset Weights)", 
+                           True, (80, 80, 80))
+    window.blit(keys_text, (20, HEIGHT - 30))
 
 def create_boundaries(space, width, height):
     rects = [
@@ -349,8 +445,9 @@ def run(window, width, height):
                 elif event.key == pygame.K_c:
                     # Toggle control mode when 'c' is pressed
                     neural_net_control = not neural_net_control
-                    # Reinitialize neural network with new random weights
-                    neural_net = SimpleNeuralNet()
+                elif event.key == pygame.K_r:
+                    # Reset weights when 'r' is pressed
+                    neural_net.reset_weights()
 
         # Get move speed from neural net if it's controlling
         neural_net_move_speed = draw(space, window, draw_options, anchor_body, circle_body, angular_velocity_history)
