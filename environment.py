@@ -14,6 +14,7 @@ window = pygame.display.set_mode((WIDTH, HEIGHT))
 show_info = False
 show_neural_net = False
 neural_net_control = False  # False = keyboard control, True = neural net control
+fitness_score = 0  # Fitness score of the neural network
 
 # Simple neural network class
 class SimpleNeuralNet:
@@ -66,6 +67,91 @@ neural_net = SimpleNeuralNet()
 
 # History for speed vs time graph
 speed_history = []
+
+# Function to evaluate neural network fitness
+def evaluate_fitness(net, space, anchor_body, circle_body, pendulum_length):
+    global fitness_score
+    
+    # Save current state
+    original_anchor_pos = anchor_body.position
+    original_circle_pos = circle_body.position
+    original_circle_vel = circle_body.velocity
+    
+    # Reset to initial state
+    anchor_body.position = (WIDTH/2, HEIGHT/2 - 50)
+    circle_body.position = (WIDTH/2, HEIGHT/2 + 50)
+    circle_body.velocity = (0, 0)
+    
+    # Simulation parameters
+    dt = 1 / 60  # Time step (60 FPS)
+    total_sim_time = 100  # 100 seconds simulation time
+    steps = int(total_sim_time / dt)  # Total number of steps
+    
+    # Threshold height (9/10 of pendulum length from anchor)
+    threshold_height = anchor_body.position.y - 0.9 * pendulum_length
+    
+    # Track time above threshold
+    time_above_threshold = 0
+    
+    # Run simulation
+    for step in range(steps):
+        # Get current state
+        dx = circle_body.position.x - anchor_body.position.x
+        dy = circle_body.position.y - anchor_body.position.y
+        angle = math.atan2(dy, dx)
+        angle_degrees = math.degrees(angle)
+        
+        # Calculate angular velocity
+        rel_velocity = (
+            circle_body.velocity.x - anchor_body.velocity.x,
+            circle_body.velocity.y - anchor_body.velocity.y
+        )
+        
+        pendulum_length_current = math.sqrt(dx**2 + dy**2)
+        if pendulum_length_current > 0:
+            arm_direction = (dx/pendulum_length_current, dy/pendulum_length_current)
+            tangential_direction = (-arm_direction[1], arm_direction[0])
+            tangential_speed = (
+                rel_velocity[0] * tangential_direction[0] + 
+                rel_velocity[1] * tangential_direction[1]
+            )
+            angular_velocity = tangential_speed / pendulum_length_current
+            angular_velocity_degrees = math.degrees(angular_velocity)
+        else:
+            angular_velocity_degrees = 0
+        
+        # Normalize inputs for the neural net
+        normalized_anchor_x = (anchor_body.position.x - WIDTH/6) / (WIDTH - WIDTH/3) * 2 - 1
+        normalized_angle = angle_degrees / 180
+        normalized_angular_velocity = angular_velocity_degrees / 100
+        
+        # Get output from neural net
+        net_output = net.forward([normalized_anchor_x, normalized_angle, normalized_angular_velocity])
+        move_speed = net_output * 5
+        
+        # Apply neural net control
+        anchor_body.velocity = (move_speed, 0)
+        anchor_body.position = (
+            max(WIDTH/6, min(WIDTH - WIDTH/6, anchor_body.position.x + move_speed)),
+            anchor_body.position.y
+        )
+        
+        # Step the simulation
+        space.step(dt)
+        
+        # Check if pendulum is above threshold
+        if circle_body.position.y < threshold_height:
+            time_above_threshold += dt
+    
+    # Calculate fitness score (1 point per second above threshold)
+    fitness_score = time_above_threshold
+    
+    # Restore original state
+    anchor_body.position = original_anchor_pos
+    circle_body.position = original_circle_pos
+    circle_body.velocity = original_circle_vel
+    
+    return fitness_score
 
 def draw(space, window, draw_options, anchor_body, circle_body, angular_velocity_history):
     window.fill((240, 240, 240))  # Light gray background
@@ -147,6 +233,10 @@ def draw(space, window, draw_options, anchor_body, circle_body, angular_velocity
                                  (0, 100, 0) if neural_net_control else (100, 0, 0))
         window.blit(control_text, (10, 100))
         
+        # Fitness score
+        fitness_text = font.render(f"Fitness: {fitness_score:.1f}/100", True, (50, 50, 50))
+        window.blit(fitness_text, (10, 130))
+        
         # Draw angular velocity vs time graph
         draw_angular_velocity_graph(window, angular_velocity_history)
     
@@ -214,7 +304,7 @@ def draw_speed_graph(window, speed_history):
     graph_width = 300
     graph_height = 150
     graph_x = WIDTH - graph_width - 20
-    graph_y = HEIGHT - graph_height - 50  # Position below the angular velocity graph
+    graph_y = HEIGHT - graph_height - 50  # Position at the bottom of the screen
     
     # Draw graph background with rounded corners
     pygame.draw.rect(window, (255, 255, 255), (graph_x, graph_y, graph_width, graph_height), border_radius=10)
@@ -266,6 +356,10 @@ def draw_neural_net(window):
     font = pygame.font.SysFont('Arial', 16)
     title = font.render("Neural Network Visualization", True, (50, 50, 50))
     window.blit(title, (net_x, net_y - 30))
+    
+    # Draw fitness score
+    fitness_text = font.render(f"Fitness: {fitness_score:.1f}/100", True, (50, 50, 50))
+    window.blit(fitness_text, (net_x, net_y - 60))
     
     # Draw connections (weights) with gradient colors
     for i in range(3):  # Input nodes
@@ -341,11 +435,6 @@ def draw_neural_net(window):
         
         if activation_radius > 0:
             pygame.draw.circle(window, activation_color, (x, y), activation_radius)
-        
-        # Draw node label
-        font = pygame.font.SysFont('Arial', 14)
-        label = font.render(f"H{j+1}", True, (0, 0, 0))
-        window.blit(label, (x - 15, y - 40))
     
     # Draw output node with gradient background
     x = net_x + 2 * layer_spacing
@@ -408,10 +497,16 @@ def create_pendulum(space, width, height):
     rotation_center_joint = pymunk.PinJoint(circle_body, anchor_body, (0, 0), (0, 0))
     space.add(circle_shape, circle_body, rotation_center_joint)
     
-    return anchor_body, circle_body  # Return both bodies for calculations
+    # Calculate pendulum length
+    pendulum_length = math.sqrt(
+        (circle_body.position.x - anchor_body.position.x)**2 + 
+        (circle_body.position.y - anchor_body.position.y)**2
+    )
+    
+    return anchor_body, circle_body, pendulum_length  # Return both bodies and pendulum length
 
 def run(window, width, height):
-    global show_info, show_neural_net, neural_net_control
+    global show_info, show_neural_net, neural_net_control, fitness_score
     
     run = True
     clock = pygame.time.Clock()
@@ -423,12 +518,15 @@ def run(window, width, height):
     space.gravity = (0, 981)
 
     create_boundaries(space, width, height)
-    anchor_body, circle_body = create_pendulum(space, width, height)  # Get both bodies
+    anchor_body, circle_body, pendulum_length = create_pendulum(space, width, height)  # Get both bodies and pendulum length
 
     draw_options = pymunk.pygame_util.DrawOptions(window)
     
     # History of angular velocity values for the graph
     angular_velocity_history = []
+    
+    # Calculate initial fitness
+    fitness_score = evaluate_fitness(neural_net, space, anchor_body, circle_body, pendulum_length)
 
     while run:
         for event in pygame.event.get():
@@ -448,6 +546,8 @@ def run(window, width, height):
                 elif event.key == pygame.K_r:
                     # Reset weights when 'r' is pressed
                     neural_net.reset_weights()
+                    # Recalculate fitness
+                    fitness_score = evaluate_fitness(neural_net, space, anchor_body, circle_body, pendulum_length)
 
         # Get move speed from neural net if it's controlling
         neural_net_move_speed = draw(space, window, draw_options, anchor_body, circle_body, angular_velocity_history)
