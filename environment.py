@@ -10,7 +10,6 @@ window = pygame.display.set_mode((WIDTH, HEIGHT))
 
 def draw(space, window, draw_options):
     window.fill("white")
-
     space.debug_draw(draw_options)
     pygame.display.update()
 
@@ -23,21 +22,24 @@ def create_boundaries(space, width, height):
     ]
 
     for pos, size in rects:
-        body = pymunk.Body(body_type=pymunk.Body.STATIC)  # static bodies aren't affected by gravity
+        body = pymunk.Body(body_type=pymunk.Body.STATIC)
         body.position = pos
         shape = pymunk.Poly.create_box(body, size)
-        shape.elasticity = 0.4  # makes the surface bouncy, The object that we want to bounce must also have elasticity
-        shape.friction = 0.5  # coefficient of friction
+        shape.elasticity = 0.4
+        shape.friction = 0.5
         space.add(body, shape)
 
-
 def create_pendulum(space, width, height):
-    anchor_body = pymunk.Body(body_type=pymunk.Body.STATIC)
-    anchor_body.position = (width/2, height/2 - 100) # the anchor
-
+    # Create anchor body as KINEMATIC so we can control its position
+    anchor_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
+    anchor_body.position = (width/2, height/2 - 100)
+    
+    # Store the initial position for reference
+    anchor_body.initial_position = (width/2, height/2 - 100)
+    
     body = pymunk.Body()
-    body.position = anchor_body.position # if not put on the anchor, will be connected to it with a line
-    line = pymunk.Segment(body, (0, 0), (255, 0), 5) # body, relative pos to body 
+    body.position = (width/2, height/2)
+    line = pymunk.Segment(body, (0, 0), (255, 0), 5)
     circle = pymunk.Circle(body, 40, (255, 0))
     line.friction = 1
     circle.friction = 1
@@ -46,18 +48,21 @@ def create_pendulum(space, width, height):
     circle.elasticity = 0.95
     rotation_center_joint = pymunk.PinJoint(body, anchor_body, (0, 0), (0, 0))
     space.add(circle, line, body, rotation_center_joint)
+    
+    return anchor_body, body  # Return the anchor body so we can control it
 
 def run(window, width, height):
     run = True
     clock = pygame.time.Clock()
     fps = 60
     dt = 1 / fps
+    move_speed = 5  # Speed at which the anchor moves
 
     space = pymunk.Space()
     space.gravity = (0, 981)
 
     create_boundaries(space, width, height)
-    create_pendulum(space, width, height)
+    anchor_body, pin = create_pendulum(space, width, height)  # Get the anchor body
 
     draw_options = pymunk.pygame_util.DrawOptions(window)
 
@@ -67,9 +72,21 @@ def run(window, width, height):
                 run = False
                 break
 
+        # Handle key presses to move the anchor
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            anchor_body.position = (anchor_body.position.x - move_speed, anchor_body.position.y)
+            # pin.position = (anchor_body.position.x - move_speed, anchor_body.position.y)
+        if keys[pygame.K_RIGHT]:
+            anchor_body.position = (anchor_body.position.x + move_speed, anchor_body.position.y)
+            # pin.position = (anchor_body.position.x + move_speed, anchor_body.position.y)
+        if keys[pygame.K_r]:  # Reset position with 'R' key
+            anchor_body.position = anchor_body.initial_position
+            pin.position = anchor_body.initial_position
+
         draw(space, window, draw_options)
-        space.step(dt)  # how fast the simulation should go? I want to step 1/60th of a second in every iteration of the while loop
-        clock.tick(fps)  # the while loop can run a maximum of 60 frames per second.
+        space.step(dt)
+        clock.tick(fps)
 
     pygame.quit()
 
