@@ -9,6 +9,27 @@ from pendulum_commons import Pendulum, WIDTH, HEIGHT
 # Configuration
 FPS = 60
 
+def print_network(genome: neat.DefaultGenome):
+    """
+    Sources: 
+        - https://neat-python.readthedocs.io/en/latest/_modules/genes.html
+        - https://neat-python.readthedocs.io/en/latest/_modules/genome.html
+    Node keys:
+        - Input nodes: The key for an input node is the input's index plus one, then multiplied by negative one.
+        - Output nodes: The key for an output node is simply its index within the list or tuple of outputs.
+        - Hidden nodes: Hidden nodes are assigned positive integer keys that are unique within the genome.
+    """
+    print(f'Genome: key={genome.key} | fitness={genome.fitness}')
+    print("Non-input nodes:")
+    for key, value in genome.nodes.items():
+        value: neat.genes.DefaultNodeGene
+        print(f'    key={key}, bias={value.bias}, activation={value.activation}, aggregation={value.aggregation}')
+    print("Enabled connections:")
+    for key, value in genome.connections.items():
+        value: neat.genes.DefaultConnectionGene
+        if value.enabled:
+            print(f'    input_key={key[0]}, output_key={key[1]}, weight={value.weight}')
+    
 def load_trained_network(network_path, config_path):
     """Load the trained network from disk"""
     # Load the NEAT config
@@ -52,6 +73,8 @@ def main():
     except Exception as e:
         print(f"Error loading network: {e}")
         return
+    
+    print_network(winner_genome)
     
     # Create the pendulum
     pendulum = Pendulum(space)

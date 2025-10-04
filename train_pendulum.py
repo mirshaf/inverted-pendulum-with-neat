@@ -7,7 +7,7 @@ from pendulum_commons import Pendulum, WIDTH, HEIGHT
 
 DRAW = False
 total_sim_time = 30  # virtual simulation time in seconds
-max_generations = 30
+max_generations = 10
 
 space = pymunk.Space()
 space.gravity = (0, 981)
@@ -108,6 +108,7 @@ def run(config_path):
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
+    winner: neat.DefaultGenome
     winner = population.run(fitness_function, max_generations)
     
     # Save the winner genome to disk
