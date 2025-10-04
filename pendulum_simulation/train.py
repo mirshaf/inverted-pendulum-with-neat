@@ -5,8 +5,8 @@ import os
 from commons import Pendulum, WIDTH, HEIGHT
 
 DRAW = False
-total_sim_time = 30  # virtual simulation time in seconds
-max_generations = 10
+total_sim_time = 25  # virtual simulation time in seconds
+max_generations = 20
 
 if DRAW:
     import pygame
@@ -15,7 +15,7 @@ if DRAW:
 space = pymunk.Space()
 space.gravity = (0, 981)
 
-# generation = 0      
+generation = 0     
 
 def fitness_function(population, config):
     """
@@ -33,8 +33,7 @@ def fitness_function(population, config):
         pygame.init() # Consider not renewing the pygame window each generation. 
         window = pygame.display.set_mode((WIDTH, HEIGHT))
         clock = pygame.time.Clock()
-        # generation_font = pygame.font.SysFont("Arial", 70)
-        # font = pygame.font.SysFont("Arial", 30)
+        generation_font = pygame.font.SysFont("Arial", 24)
         draw_options = pymunk.pygame_util.DrawOptions(window)
     
     neural_nets = [] # Phenotypes
@@ -48,9 +47,8 @@ def fitness_function(population, config):
         genomes.append(genome)
 
     # Main game:
-
-    # global generation
-    # generation += 1
+    global generation
+    generation += 1
     
     fps = 60
     dt = 1 / fps
@@ -81,7 +79,8 @@ def fitness_function(population, config):
             threshold_height = pendulum.pivot_body.position.y - 0.9 * pendulum.pendulum_length
             # Check if pendulum is above threshold
             if pendulum.bob_body.position.y < threshold_height:
-                genomes[i].fitness += dt
+                center_coeff = 1 - (1 - pendulum.pivot_body.position.x / (WIDTH/2)) ** 2 # Incentive to move towards the center, between 0 and 1
+                genomes[i].fitness += dt * center_coeff # Incentive to balance the pendulum inverted
             # find and display best member?
 
         space.step(dt)
@@ -90,10 +89,8 @@ def fitness_function(population, config):
             window.fill((240, 240, 240))  # Light gray background
             space.debug_draw(draw_options)
 
-            # text = generation_font.render("Generation : " + str(generation), True, (0, 0, 0))
-            # text_rect = text.get_rect()
-            # text_rect.center = (screen_width/2, screen_height/2 - 100)
-            # screen.blit(text, text_rect)
+            text_surface = generation_font.render(f"Generation: {generation}", True, (0, 0, 0))
+            window.blit(text_surface, (10, 10))
 
             pygame.display.update()
             # clock.tick(fps) # Remove this for fast training
@@ -118,11 +115,11 @@ def run(config_path, save_path):
     with open(save_path, 'wb') as output:
         pickle.dump(winner, output, 1)
     
-    print(f"\nBest network saved to 'best_pendulum_network.pkl'")
+    print(f"\nBest network saved to 'best_network.pkl'")
     print(f"Final fitness: {winner.fitness}")
 
 if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat_config.txt')
-    save_path = os.path.join(local_dir, 'best_pendulum_network.pkl')
+    save_path = os.path.join(local_dir, 'best_network.pkl')
     run(config_path, save_path)

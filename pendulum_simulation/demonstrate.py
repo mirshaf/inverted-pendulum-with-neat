@@ -24,7 +24,7 @@ def print_network(genome: neat.DefaultGenome):
     for key, value in genome.nodes.items():
         value: neat.genes.DefaultNodeGene
         print(f'    key={key}, bias={value.bias}, activation={value.activation}, aggregation={value.aggregation}')
-    print("Enabled connections:")
+    print("Connections:")
     for key, value in genome.connections.items():
         value: neat.genes.DefaultConnectionGene
         if value.enabled:
@@ -60,12 +60,12 @@ def main():
     
     # Load the trained network
     local_dir = os.path.dirname(__file__) # This is always the same location (relative to your script)
-    network_path = os.path.join(local_dir, 'best_pendulum_network.pkl')
+    network_path = os.path.join(local_dir, 'best_network.pkl')
     config_path = os.path.join(local_dir, 'neat_config.txt')
     
     if not os.path.exists(network_path):
         print(f"Error: Trained network file not found at {network_path}")
-        print("Please run the training program first to generate best_pendulum_network.pkl")
+        print("Please run the training program first to generate best_network.pkl")
         return
     
     try:

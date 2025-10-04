@@ -1,16 +1,16 @@
 import pymunk
 import math
 
-WIDTH, HEIGHT = 1000, 700
+WIDTH, HEIGHT = 900, 600
 
 class Pendulum:
     def __init__(self, space):
         # Create anchor body as KINEMATIC so we can control its position
         self.pivot_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        self.pivot_body.position = (WIDTH/2, HEIGHT/2 - 50)
+        self.pivot_body.position = (WIDTH/2, HEIGHT/2)
 
         self.bob_body = pymunk.Body() # The weighted object at the end of the pendulum
-        self.bob_body.position = (WIDTH/2, HEIGHT/2 + 50)
+        self.bob_body.position = (self.pivot_body.position.x, self.pivot_body.position.y + 100)
         circle_shape = pymunk.Circle(self.bob_body, 20, (0, 0))
         circle_shape.friction = 1
         circle_shape.mass = 20
