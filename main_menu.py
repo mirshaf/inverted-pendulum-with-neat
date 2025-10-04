@@ -66,7 +66,7 @@ def main():
                 print("Starting training...")
                 try:
                     # Run the training script
-                    subprocess.run([sys.executable, "train_pendulum.py"])
+                    subprocess.run([sys.executable, "pendulum_simulation/train.py"])
                 except Exception as e:
                     print(f"Error running trainer: {e}")
                     
@@ -74,7 +74,7 @@ def main():
                 print("Starting demonstration...")
                 try:
                     # Run the demonstration script
-                    subprocess.run([sys.executable, "demonstrate_pendulum.py"])
+                    subprocess.run([sys.executable, "pendulum_simulation/demonstrate.py"])
                 except Exception as e:
                     print(f"Error running demonstrator: {e}")
                     

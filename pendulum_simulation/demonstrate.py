@@ -4,7 +4,7 @@ import pymunk.pygame_util
 import pickle
 import neat
 import os
-from pendulum_commons import Pendulum, WIDTH, HEIGHT
+from commons import Pendulum, WIDTH, HEIGHT
 
 # Configuration
 FPS = 60
@@ -59,7 +59,7 @@ def main():
     draw_options = pymunk.pygame_util.DrawOptions(window)
     
     # Load the trained network
-    local_dir = os.path.dirname(__file__)
+    local_dir = os.path.dirname(__file__) # This is always the same location (relative to your script)
     network_path = os.path.join(local_dir, 'best_pendulum_network.pkl')
     config_path = os.path.join(local_dir, 'neat_config.txt')
     

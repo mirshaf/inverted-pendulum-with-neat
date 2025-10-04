@@ -1,13 +1,16 @@
-import pygame
 import pymunk
-import pymunk.pygame_util
 import neat
 import pickle
-from pendulum_commons import Pendulum, WIDTH, HEIGHT
+import os
+from commons import Pendulum, WIDTH, HEIGHT
 
 DRAW = False
 total_sim_time = 30  # virtual simulation time in seconds
 max_generations = 10
+
+if DRAW:
+    import pygame
+    import pymunk.pygame_util
 
 space = pymunk.Space()
 space.gravity = (0, 981)
@@ -99,7 +102,7 @@ def fitness_function(population, config):
         space.remove(*pendulum.everything_in_space)
     # pygame.quit()
 
-def run(config_path):
+def run(config_path, save_path):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                 neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
@@ -112,14 +115,14 @@ def run(config_path):
     winner = population.run(fitness_function, max_generations)
     
     # Save the winner genome to disk
-    with open('best_pendulum_network.pkl', 'wb') as output:
+    with open(save_path, 'wb') as output:
         pickle.dump(winner, output, 1)
     
     print(f"\nBest network saved to 'best_pendulum_network.pkl'")
     print(f"Final fitness: {winner.fitness}")
 
 if __name__ == "__main__":
-    import os
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'neat_config.txt')
-    run(config_path)
+    save_path = os.path.join(local_dir, 'best_pendulum_network.pkl')
+    run(config_path, save_path)
