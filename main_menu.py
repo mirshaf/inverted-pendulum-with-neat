@@ -1,6 +1,7 @@
 import pygame
 import sys
 import subprocess
+import os
 
 # Initialize Pygame
 pygame.init()
@@ -19,11 +20,11 @@ TITLE_COLOR = (50, 50, 50)
 
 # Fonts
 title_font = pygame.font.SysFont("Arial", 64, bold=True)
-button_font = pygame.font.SysFont("Arial", 30)
+button_font = pygame.font.SysFont("Arial", 33)
 info_font = pygame.font.SysFont("Arial", 24)
 
 class Button:
-    def __init__(self, text, x, y, width=300, height=70):
+    def __init__(self, text, x, y, width=300, height=72):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.is_hovered = False
@@ -46,6 +47,8 @@ class Button:
         return False
 
 def main():
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+
     # Create buttons
     train_button = Button("Train Neural Network", WIDTH//2 - 150, HEIGHT//2 - 105)
     ai_control_button = Button("AI Control", WIDTH//2 - 150, HEIGHT//2 - 20)
@@ -67,7 +70,7 @@ def main():
                 print("Starting training...")
                 try:
                     # Run the training script
-                    subprocess.run([sys.executable, "pendulum_simulation/train.py"])
+                    subprocess.run([sys.executable, os.path.join(current_script_dir, "pendulum_simulation", "train.py")])
                 except Exception as e:
                     print(f"Error running trainer: {e}")
                     
@@ -75,14 +78,14 @@ def main():
                 print("Starting demonstration...")
                 try:
                     # Run the demonstration script
-                    subprocess.run([sys.executable, "pendulum_simulation/AI_control.py"])
+                    subprocess.run([sys.executable, os.path.join(current_script_dir, "pendulum_simulation", "AI_control.py")])
                 except Exception as e:
                     print(f"Error running demonstrator: {e}")
             
             if manual_control_button.is_clicked(mouse_pos, event):
                 print("Starting demonstration...")
                 try:
-                    subprocess.run([sys.executable, "pendulum_simulation/manual_control.py"])
+                    subprocess.run([sys.executable, os.path.join(current_script_dir, "pendulum_simulation", "manual_control.py")])
                 except Exception as e:
                     print(f"Error running demonstrator: {e}")
                     
