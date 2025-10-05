@@ -19,11 +19,11 @@ TITLE_COLOR = (50, 50, 50)
 
 # Fonts
 title_font = pygame.font.SysFont("Arial", 64, bold=True)
-button_font = pygame.font.SysFont("Arial", 36)
+button_font = pygame.font.SysFont("Arial", 30)
 info_font = pygame.font.SysFont("Arial", 24)
 
 class Button:
-    def __init__(self, x, y, width, height, text):
+    def __init__(self, text, x, y, width=300, height=70):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.is_hovered = False
@@ -47,9 +47,11 @@ class Button:
 
 def main():
     # Create buttons
-    train_button = Button(WIDTH//2 - 150, HEIGHT//2 - 50, 300, 80, "Train Neural Network")
-    demo_button = Button(WIDTH//2 - 150, HEIGHT//2 + 50, 300, 80, "Run Demonstration")
-    quit_button = Button(WIDTH//2 - 150, HEIGHT//2 + 150, 300, 80, "Quit")
+    train_button = Button("Train Neural Network", WIDTH//2 - 150, HEIGHT//2 - 105)
+    ai_control_button = Button("AI Control", WIDTH//2 - 150, HEIGHT//2 - 20)
+    manual_control_button = Button("Manual Control", WIDTH//2 - 150, HEIGHT//2 + 65)
+    quit_button = Button("Quit", WIDTH//2 - 150, HEIGHT//2 + 150)
+    buttons = [train_button, ai_control_button, manual_control_button, quit_button]
     
     clock = pygame.time.Clock()
     running = True
@@ -69,11 +71,18 @@ def main():
                 except Exception as e:
                     print(f"Error running trainer: {e}")
                     
-            if demo_button.is_clicked(mouse_pos, event):
+            if ai_control_button.is_clicked(mouse_pos, event):
                 print("Starting demonstration...")
                 try:
                     # Run the demonstration script
-                    subprocess.run([sys.executable, "pendulum_simulation/demonstrate.py"])
+                    subprocess.run([sys.executable, "pendulum_simulation/AI_control.py"])
+                except Exception as e:
+                    print(f"Error running demonstrator: {e}")
+            
+            if manual_control_button.is_clicked(mouse_pos, event):
+                print("Starting demonstration...")
+                try:
+                    subprocess.run([sys.executable, "pendulum_simulation/manual_control.py"])
                 except Exception as e:
                     print(f"Error running demonstrator: {e}")
                     
@@ -81,22 +90,20 @@ def main():
                 running = False
         
         # Update button hover states
-        train_button.check_hover(mouse_pos)
-        demo_button.check_hover(mouse_pos)
-        quit_button.check_hover(mouse_pos)
+        for b in buttons:
+            b.check_hover(mouse_pos)
         
         # Draw everything
         screen.fill(BACKGROUND)
         
         # Draw title
-        title_text = title_font.render("Pendulum Control", True, TITLE_COLOR)
+        title_text = title_font.render("Pendulum Simulation", True, TITLE_COLOR)
         title_rect = title_text.get_rect(center=(WIDTH//2, 100))
         screen.blit(title_text, title_rect)
         
         # Draw buttons
-        train_button.draw(screen)
-        demo_button.draw(screen)
-        quit_button.draw(screen)
+        for b in buttons:
+            b.draw(screen)
         
         # Draw info text
         info_text = info_font.render("Choose an option from the menu above", True, (100, 100, 100))
